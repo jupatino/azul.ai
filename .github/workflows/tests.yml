@@ -17,7 +17,6 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
-          SLACK_AVATAR_URL: https://raw.githubusercontent.com/jupatino/azul.ai/main/azul-agent-icon.png
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_URL: ${{ github.event.pull_request.html_url }}
@@ -39,7 +38,6 @@ jobs:
             --arg pr_number "$PR_NUMBER" \
             --arg pr_title "$PR_TITLE" \
             --arg channel "$SLACK_CHANNEL_ID" \
-            --arg avatar_url "$SLACK_AVATAR_URL" \
             '{
               channel: $channel,
               text: $text,
@@ -50,9 +48,6 @@ jobs:
                 ]},
                 {type: "section", text: {type: "mrkdwn", text: ("<" + $pr_url + "|PR #" + $pr_number + ": " + $pr_title + ">")}}
               ]
-            } + {
-              username: "azul.ai AGENT",
-              icon_url: $avatar_url
             }')"
           if [[ -n "$SLACK_BOT_TOKEN" && -n "$SLACK_CHANNEL_ID" ]]; then
             response="$(curl --fail --silent --show-error \
@@ -95,7 +90,6 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
-          SLACK_AVATAR_URL: https://raw.githubusercontent.com/jupatino/azul.ai/main/azul-agent-icon.png
           TEST_STATUS: ${{ job.status }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
@@ -139,7 +133,6 @@ jobs:
             --arg pr_number "$PR_NUMBER" \
             --arg pr_title "$PR_TITLE" \
             --arg channel "$SLACK_CHANNEL_ID" \
-            --arg avatar_url "$SLACK_AVATAR_URL" \
             '{
               channel: $channel,
               text: $text,
@@ -156,9 +149,6 @@ jobs:
                 },
                 {type: "section", text: {type: "mrkdwn", text: ("<" + $pr_url + "|PR #" + $pr_number + ": " + $pr_title + ">")}}
               ]
-            } + {
-              username: "azul.ai AGENT",
-              icon_url: $avatar_url
             }')"
           if [[ -n "$SLACK_BOT_TOKEN" && -n "$SLACK_CHANNEL_ID" ]]; then
             response="$(curl --fail --silent --show-error \
