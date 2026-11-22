@@ -31,6 +31,19 @@ class AgentSessionService:
                 {"role": "system", "content": self.system_prompt},
             )
 
+    def refresh_system_prompt(self, connection, session_id):
+        with connection.transaction():
+            cursor = connection.execute(
+                """
+                UPDATE agent_session_messages
+                SET message = jsonb_set(message, '{content}', to_jsonb(%s::text), true)
+                WHERE session_id = %s AND message->>'role' = 'system'
+                """,
+                (self.system_prompt, session_id),
+            )
+            if cursor.rowcount == 0:
+                raise RuntimeError(f"Session {session_id} has no system prompt to refresh.")
+
     def process(self, connection, session_id, text, *, append_user_message=True):
         if append_user_message:
             save_message(connection, session_id, {"role": "user", "content": text})

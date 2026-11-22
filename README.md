@@ -1,6 +1,6 @@
 # azul.ai
 
-Slack-connected AI agent with PostgreSQL-backed conversations and a
+Multi-channel AI agent with PostgreSQL-backed conversations and a
 host-persistent `skills/` directory.
 
 ## Requirements
@@ -45,6 +45,25 @@ the Slack app's Events API and each slash command to use
 `message.im` bot events and grant `app_mentions:read`, `im:history`, and
 `chat:write`. Custom slash commands cannot be invoked in message threads.
 
+## Telegram private chats
+
+Create a Telegram bot with [@BotFather](https://telegram.me/BotFather), then set
+`TELEGRAM_BOT_TOKEN` in `.env`. Start the service once and send `/id` to get
+your numeric user ID; while the allowlist is empty, the bot only responds to
+that command. Add authorized IDs to `TELEGRAM_ALLOWED_USER_IDS`, separated by
+commas, then restart the service. Only private chats are handled; groups are
+ignored. Each private chat has its own persistent session, and `/new`, `/reset`,
+and `/compact` manage that session.
+
+Run Telegram as an opt-in polling service alongside Slack:
+
+```bash
+docker compose --profile telegram up --build -d azul-ai-telegram
+docker compose logs -f azul-ai-telegram
+```
+
+Polling does not require a public HTTPS endpoint. Keep the bot token private.
+
 ## Slack pull request notifications
 
 The `Slack PR notifications` GitHub Actions workflow posts to Slack when a pull
@@ -84,6 +103,7 @@ cannot be determined safely.
 - `src/azul_ai/cli.py` — local interactive CLI entry point
 - `src/azul_ai/channels/base.py` — normalized incoming-message contract
 - `src/azul_ai/channels/slack/` — Slack Bolt and Flask adapter
-- `src/azul_ai/channels/whatsapp/` and `src/azul_ai/channels/telegram/` — reserved adapters
+- `src/azul_ai/channels/telegram/` — Telegram polling adapter
+- `src/azul_ai/channels/whatsapp/` — reserved adapter
 - `src/azul_ai/tools/local.py` — confirmed local command and file tools
 - `src/azul_ai/tools/skills.py` — restricted persistent-skills tools

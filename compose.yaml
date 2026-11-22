@@ -13,3 +13,17 @@ services:
     volumes:
       - ./skills:/app/skills
     restart: unless-stopped
+
+  azul-ai-telegram:
+    image: azul-ai-agent:latest
+    build: .
+    profiles: ["telegram"]
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: host.docker.internal
+      AZUL_AGENT_SKILLS_DIR: /app/skills
+    command: ["/app/.venv/bin/python", "-m", "azul_ai.channels.telegram.app"]
+    volumes:
+      - ./skills:/app/skills
+    restart: unless-stopped

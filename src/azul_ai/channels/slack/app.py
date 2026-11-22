@@ -8,18 +8,14 @@ from slack_bolt import App
 from slack_bolt.adapter.flask import SlackRequestHandler
 
 from azul_ai.channels.base import IncomingMessage
+from azul_ai.core.agent_runtime import build_session_service
 from azul_ai.core.db import connect_to_database, record_session_participant
-from azul_ai.core.session import AgentSessionService
-from azul_ai.core.config import PROJECT_DIR
 from azul_ai.channels.slack.repository import (
-    SYSTEM_PROMPT,
     create_new_session,
     get_command_session,
     get_or_create_thread_session,
     initialize_slack_tables,
-    refresh_session_system_prompt,
 )
-from azul_ai.tools.skills import SkillsTools
 
 
 logger = logging.getLogger(__name__)
@@ -44,36 +40,7 @@ slack_app = App(
 flask_app = Flask(__name__)
 request_handler = SlackRequestHandler(slack_app)
 
-skills_dir = os.getenv("AZUL_AGENT_SKILLS_DIR", PROJECT_DIR / "skills")
-skills = SkillsTools(skills_dir)
-TOOLS = {
-    "list_files": skills.list_files,
-    "read_file": skills.read_file,
-    "write_file": skills.write_file,
-    "run_command": skills.run_command,
-}
-TOOL_SCHEMAS = [
-    {
-        "type": "function",
-        "function": {
-            "name": name,
-            "description": description,
-            "parameters": {"type": "object", "properties": properties, "required": required},
-        },
-    }
-    for name, description, properties, required in (
-        ("list_files", "Lists files inside the persistent skills directory only.",
-         {"path": {"type": "string"}}, ["path"]),
-        ("read_file", "Reads a file inside the persistent skills directory only.",
-         {"path": {"type": "string"}}, ["path"]),
-        ("write_file", "Creates or replaces a file inside the persistent skills directory only.",
-         {"path": {"type": "string"}, "content": {"type": "string"}}, ["path", "content"]),
-        ("run_command", "Runs pwd or ls in the persistent skills directory.",
-         {"command": {"type": "string"}}, ["command"]),
-    )
-]
-
-session_service = AgentSessionService(SYSTEM_PROMPT, TOOL_SCHEMAS, TOOLS)
+session_service = build_session_service()
 
 
 def normalize_slack_message(body, event):
@@ -146,7 +113,7 @@ def process_slack_message(body, event):
                 message.sender_id,
             )
 
-        refresh_session_system_prompt(connection, session_id)
+        session_service.refresh_system_prompt(connection, session_id)
         try:
             reply = session_service.process(
                 connection,
