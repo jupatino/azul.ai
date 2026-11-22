@@ -21,7 +21,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_URL: ${{ github.event.pull_request.html_url }}
-          ICON_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.event.pull_request.head.sha }}/assets/slack/tests-started.png
+          ICON_URL: https://raw.githubusercontent.com/${{ github.repository }}/main/assets/slack/tests-started.png
         run: |
           set -euo pipefail
           if [[ -z "$SLACK_BOT_TOKEN" && -z "$SLACK_CHANNEL_ID" && -z "$SLACK_WEBHOOK_URL" ]]; then
@@ -111,7 +111,6 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_URL: ${{ github.event.pull_request.html_url }}
-          ICON_REVISION: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           if [[ -z "$SLACK_BOT_TOKEN" && -z "$SLACK_CHANNEL_ID" && -z "$SLACK_WEBHOOK_URL" ]]; then
@@ -140,7 +139,7 @@ jobs:
 
           icon_url=""
           if [[ -n "$icon_file" ]]; then
-            icon_url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${ICON_REVISION}/assets/slack/${icon_file}"
+            icon_url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/assets/slack/${icon_file}"
           fi
           printf -v message '%s\nPR #%s: %s' "$status_label" "$PR_NUMBER" "$PR_TITLE"
           customize_sender=false
