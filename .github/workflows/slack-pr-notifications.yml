@@ -31,7 +31,7 @@ jobs:
           case "$PR_ACTION" in
             closed)
               if [[ "$PR_MERGED" == "true" ]]; then
-                status_icon_url="https://raw.githubusercontent.com/jupatino/azul.ai/main/assets/slack/pr-merged.png"
+                status_icon_url="https://raw.githubusercontent.com/jupatino/azul.ai/main/assets/slack/pr-merged-v2.png"
                 status_label="Pull request merged"
               else
                 status_icon_url=""
@@ -39,19 +39,19 @@ jobs:
               fi
               ;;
             synchronize)
-              status_icon_url="https://raw.githubusercontent.com/jupatino/azul.ai/main/assets/slack/pr-open.png"
+              status_icon_url="https://raw.githubusercontent.com/jupatino/azul.ai/main/assets/slack/pr-open-v2.png"
               status_label="Pull request updated"
               ;;
             ready_for_review)
-              status_icon_url="https://raw.githubusercontent.com/jupatino/azul.ai/main/assets/slack/pr-open.png"
+              status_icon_url="https://raw.githubusercontent.com/jupatino/azul.ai/main/assets/slack/pr-open-v2.png"
               status_label="Ready for review"
               ;;
             reopened)
-              status_icon_url="https://raw.githubusercontent.com/jupatino/azul.ai/main/assets/slack/pr-open.png"
+              status_icon_url="https://raw.githubusercontent.com/jupatino/azul.ai/main/assets/slack/pr-open-v2.png"
               status_label="Pull request reopened"
               ;;
             *)
-              status_icon_url="https://raw.githubusercontent.com/jupatino/azul.ai/main/assets/slack/pr-open.png"
+              status_icon_url="https://raw.githubusercontent.com/jupatino/azul.ai/main/assets/slack/pr-open-v2.png"
               status_label="New pull request"
               ;;
           esac
