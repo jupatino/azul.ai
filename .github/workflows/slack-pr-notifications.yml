@@ -14,6 +14,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+          SLACK_AVATAR_URL: https://raw.githubusercontent.com/jupatino/azul.ai/main/azul-agent-icon.png
           PR_ACTION: ${{ github.event.action }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
@@ -69,6 +70,7 @@ jobs:
             --arg author "$PR_AUTHOR" \
             --arg base "$PR_BASE" \
             --arg channel "$SLACK_CHANNEL_ID" \
+            --arg avatar_url "$SLACK_AVATAR_URL" \
             '{
                 channel: $channel,
                 text: $text,
@@ -101,6 +103,9 @@ jobs:
                   }]
                 }
               ]
+            } + {
+              username: "azul.ai AGENT",
+              icon_url: $avatar_url
             }')"
 
           if [[ -n "$SLACK_BOT_TOKEN" && -n "$SLACK_CHANNEL_ID" ]]; then
