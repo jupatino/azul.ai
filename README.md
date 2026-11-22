@@ -102,6 +102,8 @@ and [Git Merge](https://github.com/primer/octicons/blob/main/icons/git-merge-16.
 vectors as high-resolution PNGs for Slack.
 Versioned image filenames ensure Slack fetches updated icon artwork instead of
 reusing cached images.
+Test workflow notifications use separate PNG status icons for tests starting,
+passing, failing, and being cancelled, stored in `assets/slack/`.
 The `Tests` workflow uses compact status icons for tests starting, passing,
 failing, and being cancelled.
 
