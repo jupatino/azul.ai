@@ -12,7 +12,8 @@ jobs:
     steps:
       - name: Send notification to Slack
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
           PR_ACTION: ${{ github.event.action }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
@@ -23,8 +24,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
-            echo "SLACK_WEBHOOK_URL is not configured."
+          if [[ -z "$SLACK_BOT_TOKEN" || -z "$SLACK_CHANNEL_ID" ]]; then
+            echo "::error::SLACK_BOT_TOKEN and SLACK_CHANNEL_ID must be configured."
             exit 1
           fi
 
@@ -59,15 +60,20 @@ jobs:
           printf -v fallback_text '%s: PR #%s: %s\nAuthor: %s | Base: %s\n%s' \
             "$status_label" "$PR_NUMBER" "$PR_TITLE" "$PR_AUTHOR" "$PR_BASE" "$PR_URL"
           payload="$(jq -n \
+            --arg channel "$SLACK_CHANNEL_ID" \
             --arg text "$fallback_text" \
             --arg status "$status_label" \
             --arg icon_url "$status_icon_url" \
+            --arg avatar_url "https://raw.githubusercontent.com/jupatino/azul.ai/main/azul-agent-icon.png" \
             --arg pr_url "$PR_URL" \
             --arg pr_number "$PR_NUMBER" \
             --arg pr_title "$PR_TITLE" \
             --arg author "$PR_AUTHOR" \
             --arg base "$PR_BASE" \
             '{
+              channel: $channel,
+              username: "azul.ai AGENT",
+              icon_url: $avatar_url,
               text: $text,
               blocks: [
                 {
@@ -100,7 +106,13 @@ jobs:
               ]
             }')"
 
-          curl --fail --silent --show-error \
-            -H "Content-Type: application/json" \
+          response="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+            -H "Content-Type: application/json; charset=utf-8" \
             --data "$payload" \
-            "$SLACK_WEBHOOK_URL"
+            https://slack.com/api/chat.postMessage)"
+          if ! jq -e '.ok == true' <<<"$response" >/dev/null; then
+            error="$(jq -r '.error // "unknown_error"' <<<"$response")"
+            echo "::error::Slack API rejected the PR notification: $error"
+            exit 1
+          fi
