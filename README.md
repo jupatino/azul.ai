@@ -49,14 +49,13 @@ pull request can be merged. The `Auto-merge pull requests` workflow opts
 non-draft pull requests into GitHub auto-merge after they are opened or updated,
 and opts in existing open pull requests when changes reach `main`. GitHub merges
 them only after all required status checks and any configured review requirements
-are satisfied. Add an `AUTO_MERGE_TOKEN` Actions secret containing a fine-grained
-personal access token scoped to this repository with `Contents: Read and write`
-and `Pull requests: Read and write` permissions. GitHub may suppress workflow
-events for PRs auto-merged by GitHub Actions, so a scheduled reconciliation checks
-for missed Slack merge notifications every five minutes. It records a hidden PR
-comment after successful delivery to prevent duplicates. To replay a specific
-missed merge, manually run the `Reconcile Slack merge notifications` workflow
-with its PR number.
+are satisfied. GitHub may suppress workflow events for PRs auto-merged by GitHub
+Actions, so a scheduled reconciliation checks for missed Slack merge
+notifications every five minutes. It uses the workflow's
+`GITHUB_TOKEN`, granted only pull-request read and issue-comment write permissions,
+and records a hidden PR comment after successful delivery to prevent duplicates.
+To replay a specific missed merge, manually run the `Reconcile Slack merge notifications`
+workflow with its PR number.
 
 ## Slack over HTTP
 

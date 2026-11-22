@@ -10,7 +10,9 @@ on:
         required: false
         type: string
 
-permissions: {}
+permissions:
+  issues: write
+  pull-requests: read
 
 jobs:
   notify-merged:
@@ -18,7 +20,7 @@ jobs:
     steps:
       - name: Notify Slack about unreported merges
         env:
-          AUTO_MERGE_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
           PR_NUMBER: ${{ github.event.inputs.pr_number }}
@@ -26,11 +28,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ -z "$AUTO_MERGE_TOKEN" || -z "$SLACK_BOT_TOKEN" || -z "$SLACK_CHANNEL_ID" ]]; then
-            echo "::error::Configure AUTO_MERGE_TOKEN, SLACK_BOT_TOKEN, and SLACK_CHANNEL_ID repository Actions secrets."
+          if [[ -z "$GH_TOKEN" || -z "$SLACK_BOT_TOKEN" || -z "$SLACK_CHANNEL_ID" ]]; then
+            echo "::error::Configure SLACK_BOT_TOKEN and SLACK_CHANNEL_ID repository Actions secrets."
             exit 1
           fi
-          export GH_TOKEN="$AUTO_MERGE_TOKEN"
 
           merge_marker="<!-- slack-merge-notified -->"
 

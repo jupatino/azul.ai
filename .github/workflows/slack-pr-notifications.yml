@@ -4,7 +4,9 @@ on:
   pull_request_target:
     types: [opened, reopened, ready_for_review, synchronize, closed]
 
-permissions: {}
+permissions:
+  issues: write
+  pull-requests: read
 
 jobs:
   notify:
@@ -14,7 +16,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
-          GH_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR_ACTION: ${{ github.event.action }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
