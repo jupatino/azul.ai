@@ -54,8 +54,10 @@ Actions, so a scheduled reconciliation checks for missed Slack merge
 notifications every five minutes. It uses the workflow's
 `GITHUB_TOKEN`, granted only pull-request read and issue-comment write permissions,
 and records a hidden PR comment after successful delivery to prevent duplicates.
-To replay a specific missed merge, manually run the `Reconcile Slack merge notifications`
-workflow with its PR number.
+Merge notifications normally post on the close event; reconciliation delivers
+missed notices within five minutes. To replay a specific missed merge
+immediately, manually run the `Reconcile Slack merge notifications` workflow
+with its PR number.
 
 ## Slack over HTTP
 
