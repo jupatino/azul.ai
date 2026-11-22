@@ -45,7 +45,11 @@ uv run --frozen coverage report --show-missing
 
 The GitHub Actions `Tests` workflow runs the test suite on pull requests to
 `main`. The `main` branch ruleset requires the `test` check to pass before a
-pull request can be merged.
+pull request can be merged. The `Auto-merge pull requests` workflow opts
+non-draft pull requests into GitHub auto-merge after they are opened or updated,
+and opts in existing open pull requests when changes reach `main`. GitHub merges
+them only after all required status checks and any configured review requirements
+are satisfied.
 
 ## Slack over HTTP
 
