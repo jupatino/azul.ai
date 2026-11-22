@@ -20,6 +20,7 @@ jobs:
           PR_BASE: ${{ github.event.pull_request.base.ref }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           PR_MERGED: ${{ github.event.pull_request.merged }}
+          BOT_ICON_URL: https://raw.githubusercontent.com/jupatino/azul.ai/main/azul-agent-icon.png
         run: |
           set -euo pipefail
 
@@ -61,7 +62,8 @@ jobs:
             "$PR_AUTHOR" "$PR_BASE"
           payload="$(jq -n \
             --arg text "$message" \
-            '{text: $text, mrkdwn: true}')"
+            --arg icon_url "$BOT_ICON_URL" \
+            '{text: $text, mrkdwn: true, username: "azul.ai", icon_url: $icon_url}')"
 
           curl --fail --silent --show-error \
             -H "Content-Type: application/json" \
