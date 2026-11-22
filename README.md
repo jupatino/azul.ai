@@ -45,6 +45,14 @@ the Slack app's Events API and each slash command to use
 `message.im` bot events and grant `app_mentions:read`, `im:history`, and
 `chat:write`. Custom slash commands cannot be invoked in message threads.
 
+## Slack pull request notifications
+
+The `Slack PR notifications` GitHub Actions workflow posts to Slack when a pull
+request is opened, reopened, marked ready for review, receives new commits, or
+is closed. Add a repository Actions secret named `SLACK_WEBHOOK_URL` with an
+Incoming Webhook URL configured for the `#pull-requests` channel. The workflow
+does not check out or execute pull request code.
+
 The agent's file tools are restricted to `skills/`, which Compose bind-mounts
 from this host project to `/app/skills` in the container. Created files remain
 on the host after container recreation. File sizes are limited to 100 KB.

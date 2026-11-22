@@ -1,0 +1,61 @@
+name: Slack PR notifications
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, synchronize, closed]
+
+permissions: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send notification to Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          PR_ACTION: ${{ github.event.action }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_BASE: ${{ github.event.pull_request.base.ref }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
+            echo "SLACK_WEBHOOK_URL is not configured."
+            exit 1
+          fi
+
+          case "$PR_ACTION" in
+            closed)
+              if [[ "$PR_MERGED" == "true" ]]; then
+                status="merged"
+              else
+                status="closed"
+              fi
+              message="Pull request #${PR_NUMBER} ${status}: ${PR_TITLE}"
+              ;;
+            synchronize)
+              message="New commits pushed to pull request #${PR_NUMBER}: ${PR_TITLE}"
+              ;;
+            ready_for_review)
+              message="Pull request #${PR_NUMBER} is ready for review: ${PR_TITLE}"
+              ;;
+            *)
+              message="Pull request #${PR_NUMBER} opened: ${PR_TITLE}"
+              ;;
+          esac
+
+          payload="$(jq -n \
+            --arg text "$message" \
+            --arg author "$PR_AUTHOR" \
+            --arg base "$PR_BASE" \
+            --arg url "$PR_URL" \
+            '{text: ($text + "\nAuthor: " + $author + " | Base: " + $base + "\n" + $url), mrkdwn: false}')"
+
+          curl --fail --silent --show-error \
+            -H "Content-Type: application/json" \
+            --data "$payload" \
+            "$SLACK_WEBHOOK_URL"
