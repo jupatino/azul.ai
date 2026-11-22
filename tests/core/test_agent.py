@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 from azul_ai.core import agent
 
 
-def completion(content=None, tool_calls=None):
+def make_completion(content=None, tool_calls=None):
     message = SimpleNamespace(
         content=content,
         tool_calls=tool_calls,
@@ -52,7 +52,7 @@ class RunAgentTests(unittest.TestCase):
     @patch("azul_ai.core.agent.get_client")
     @patch("azul_ai.core.db.save_message")
     def test_returns_assistant_text(self, save_message, get_client):
-        get_client.return_value.chat.completions.create.return_value = completion("done")
+        get_client.return_value.chat.completions.create.return_value = make_completion("done")
 
         result = agent.run_agent(self.connection, self.session_id, [], [], {})
 
@@ -72,8 +72,8 @@ class RunAgentTests(unittest.TestCase):
             function=SimpleNamespace(name="echo", arguments='{"value":"result"}'),
         )
         get_client.return_value.chat.completions.create.side_effect = [
-            completion(tool_calls=[tool_call]),
-            completion("finished"),
+            make_completion(tool_calls=[tool_call]),
+            make_completion("finished"),
         ]
 
         result = agent.run_agent(
@@ -91,7 +91,7 @@ class RunAgentTests(unittest.TestCase):
     @patch("azul_ai.core.agent.get_client")
     @patch("azul_ai.core.db.save_message")
     def test_uses_fallback_for_empty_assistant_text(self, save_message, get_client):
-        get_client.return_value.chat.completions.create.return_value = completion("")
+        get_client.return_value.chat.completions.create.return_value = make_completion("")
 
         result = agent.run_agent(self.connection, self.session_id, [], [], {})
 
@@ -105,7 +105,7 @@ class RunAgentTests(unittest.TestCase):
             id="call-1",
             function=SimpleNamespace(name="echo", arguments="{}"),
         )
-        get_client.return_value.chat.completions.create.return_value = completion(
+        get_client.return_value.chat.completions.create.return_value = make_completion(
             tool_calls=[tool_call]
         )
 

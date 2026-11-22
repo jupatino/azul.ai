@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 from azul_ai.core.session import AgentSessionService
 
 
-class AgentSessionServiceTests(unittest.TestCase):
+class AgentSessionServiceTestCase(unittest.TestCase):
     def setUp(self):
         self.service = AgentSessionService("system", ["schema"], {"tool": lambda: "ok"})
         self.connection = MagicMock()

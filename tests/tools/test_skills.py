@@ -6,7 +6,7 @@ from unittest.mock import patch
 from azul_ai.tools.skills import MAX_FILE_BYTES, SkillsTools
 
 
-class SkillsDirectoryTestCase(unittest.TestCase):
+class SkillsToolsTestCase(unittest.TestCase):
     def setUp(self):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary_directory.cleanup)
@@ -15,7 +15,7 @@ class SkillsDirectoryTestCase(unittest.TestCase):
         self.tools = SkillsTools(self.skills_dir)
 
 
-class SkillsFileOperationsTests(SkillsDirectoryTestCase):
+class SkillsFileOperationsTestCase(SkillsToolsTestCase):
     def test_creates_skills_directory(self):
         self.assertTrue(self.skills_dir.is_dir())
 
@@ -103,7 +103,7 @@ class SkillsFileOperationsTests(SkillsDirectoryTestCase):
         self.assertEqual(len(truncated_output), 10_000)
 
 
-class SkillsFileDeletionTests(SkillsDirectoryTestCase):
+class SkillsFileDeletionTestCase(SkillsToolsTestCase):
     def test_deletes_regular_file_inside_skills_directory(self):
         target = self.skills_dir / "notes" / "draft.txt"
         target.parent.mkdir()

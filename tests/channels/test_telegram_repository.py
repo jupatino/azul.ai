@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 from azul_ai.channels.telegram import repository
 
 
-class TelegramRepositoryTests(unittest.TestCase):
+class TelegramRepositoryTestCase(unittest.TestCase):
     def setUp(self):
         self.connection = MagicMock()
 

@@ -6,7 +6,7 @@ from azul_ai.core import db
 from azul_ai.core.config import get_required
 
 
-class DatabaseConnectionTests(unittest.TestCase):
+class DatabaseConnectionTestCase(unittest.TestCase):
     def test_requires_database_url(self):
         with patch.dict(os.environ, {}, clear=True):
             with self.assertRaisesRegex(RuntimeError, "Set DATABASE_URL"):
@@ -53,7 +53,7 @@ class DatabaseConnectionTests(unittest.TestCase):
         self.assertEqual(connect.call_args.kwargs["host"], "localhost")
 
 
-class DatabaseOperationTests(unittest.TestCase):
+class DatabaseOperationTestCase(unittest.TestCase):
     def setUp(self):
         self.connection = MagicMock()
 
@@ -98,7 +98,7 @@ class DatabaseOperationTests(unittest.TestCase):
         self.assertEqual(db.load_messages(self.connection, "session"), messages)
 
 
-class ConfigurationTests(unittest.TestCase):
+class ConfigurationTestCase(unittest.TestCase):
     def test_requires_configured_value(self):
         with patch.dict(os.environ, {}, clear=True):
             with self.assertRaisesRegex(RuntimeError, "Set REQUIRED_KEY"):

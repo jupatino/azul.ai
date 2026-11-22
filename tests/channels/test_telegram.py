@@ -16,7 +16,7 @@ from azul_ai.channels.telegram.app import (
 from azul_ai.core.agent_runtime import build_session_service
 
 
-class TelegramConfigurationTests(unittest.TestCase):
+class TelegramConfigurationTestCase(unittest.TestCase):
     def test_configured_user_ids_are_trimmed_and_deduplicated(self):
         with patch.dict(os.environ, {"TELEGRAM_ALLOWED_USER_IDS": "123, 456,123"}):
             self.assertEqual(configured_user_ids(), {"123", "456"})
@@ -27,7 +27,7 @@ class TelegramConfigurationTests(unittest.TestCase):
                 configured_user_ids()
 
 
-class TelegramMessageTests(unittest.TestCase):
+class TelegramMessageTestCase(unittest.TestCase):
     def test_normalizes_private_message(self):
         update = SimpleNamespace(
             effective_message=SimpleNamespace(text="  hello  "),
@@ -62,7 +62,7 @@ class TelegramMessageTests(unittest.TestCase):
             normalize_telegram_message(update)
 
 
-class TelegramReplyTests(unittest.TestCase):
+class TelegramReplyTestCase(unittest.TestCase):
     def test_split_reply_respects_limit_and_preserves_content(self):
         text = ("word " * 1200).strip()
 
@@ -91,7 +91,7 @@ class TelegramReplyTests(unittest.TestCase):
         )
 
 
-class TelegramDeleteCommandTests(unittest.TestCase):
+class TelegramDeleteCommandTestCase(unittest.TestCase):
     def setUp(self):
         self.delete_file = Mock(return_value="Deleted notes.txt.")
         self.session_service = SimpleNamespace(tools={"delete_file": self.delete_file})

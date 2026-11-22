@@ -5,7 +5,7 @@ from unittest.mock import patch
 from azul_ai.core.agent_runtime import SYSTEM_PROMPT, TOOL_SCHEMAS, build_session_service
 
 
-class AgentRuntimeTests(unittest.TestCase):
+class AgentRuntimeTestCase(unittest.TestCase):
     def test_registers_matching_tool_schemas_and_handlers(self):
         with tempfile.TemporaryDirectory() as skills_dir, patch.dict(
             "os.environ", {"AZUL_AGENT_SKILLS_DIR": skills_dir}
