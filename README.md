@@ -51,9 +51,12 @@ and opts in existing open pull requests when changes reach `main`. GitHub merges
 them only after all required status checks and any configured review requirements
 are satisfied. Add an `AUTO_MERGE_TOKEN` Actions secret containing a fine-grained
 personal access token scoped to this repository with `Contents: Read and write`
-and `Pull requests: Read and write` permissions. The workflow uses this token so
-GitHub emits the normal merge event, allowing the Slack notification workflow to
-run when an auto-merge completes.
+and `Pull requests: Read and write` permissions. GitHub may suppress workflow
+events for PRs auto-merged by GitHub Actions, so a scheduled reconciliation checks
+for missed Slack merge notifications every five minutes. It records a hidden PR
+comment after successful delivery to prevent duplicates. To replay a specific
+missed merge, manually run the `Reconcile Slack merge notifications` workflow
+with its PR number.
 
 ## Slack over HTTP
 
