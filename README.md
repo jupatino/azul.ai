@@ -53,7 +53,9 @@ your numeric user ID; while the allowlist is empty, the bot only responds to
 that command. Add authorized IDs to `TELEGRAM_ALLOWED_USER_IDS`, separated by
 commas, then restart the service. Only private chats are handled; groups are
 ignored. Each private chat has its own persistent session, and `/new`, `/reset`,
-and `/compact` manage that session.
+and `/compact` manage that session. Delete a regular file in `skills/` with
+`/delete <path>`; directories, symbolic links, and paths outside `skills/` are
+rejected.
 
 Run Telegram as an opt-in polling service alongside Slack:
 
@@ -75,6 +77,8 @@ does not check out or execute pull request code.
 The agent's file tools are restricted to `skills/`, which Compose bind-mounts
 from this host project to `/app/skills` in the container. Created files remain
 on the host after container recreation. File sizes are limited to 100 KB.
+The agent can delete regular files in `skills/`, but cannot delete directories
+or symbolic links.
 `run_command` allows only `pwd` and `ls` in `skills/`; arbitrary shell commands
 are disabled.
 

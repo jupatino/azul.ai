@@ -45,6 +45,23 @@ class SkillsTools:
         file_path.write_text(content, encoding="utf-8")
         return f"Saved {file_path.relative_to(self.skills_dir)} ({len(content)} characters written)."
 
+    def delete_file(self, path):
+        requested = Path(path)
+        candidate = requested if requested.is_absolute() else self.skills_dir / requested
+        parent = candidate.parent.resolve()
+        try:
+            parent.relative_to(self.skills_dir)
+        except ValueError as exc:
+            raise ValueError("File tools can only access paths inside the skills directory.") from exc
+        if candidate.is_symlink():
+            raise ValueError("Symbolic links cannot be deleted with delete_file.")
+
+        file_path = self.resolve_path(path)
+        if not file_path.is_file():
+            raise ValueError(f"{path} is not a file.")
+        file_path.unlink()
+        return f"Deleted {file_path.relative_to(self.skills_dir)}."
+
     def run_command(self, command):
         if command not in SAFE_COMMANDS:
             raise ValueError(f"Command is not allowed. Choose one of: {', '.join(SAFE_COMMANDS)}.")

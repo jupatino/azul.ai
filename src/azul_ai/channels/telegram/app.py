@@ -204,6 +204,14 @@ def process_session_command(message, operation, allowed_user_ids, session_servic
         raise ValueError(f"Unknown session operation: {operation}")
 
 
+def process_delete_command(user_id, path, allowed_user_ids, session_service):
+    if user_id not in allowed_user_ids:
+        return "You are not authorized to manage this agent session."
+    if not path:
+        return "Usage: /delete <file path inside skills/>."
+    return session_service.tools["delete_file"](path)
+
+
 async def handle_session_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
     operation = update.effective_message.text.split("@", 1)[0].lstrip("/").lower()
@@ -219,6 +227,22 @@ async def handle_session_command(update: Update, context: ContextTypes.DEFAULT_T
     except Exception:
         logger.exception("Failed to %s Telegram session", operation)
         await message.reply_text(f"Couldn't {operation} the session.")
+
+
+async def handle_delete_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = update.effective_message
+    try:
+        response = await asyncio.to_thread(
+            process_delete_command,
+            str(update.effective_user.id),
+            " ".join(context.args).strip(),
+            context.application.bot_data["allowed_user_ids"],
+            context.application.bot_data["session_service"],
+        )
+        await reply_in_parts(message, response)
+    except Exception as exc:
+        logger.exception("Failed to delete Telegram skills file")
+        await message.reply_text(f"Couldn't delete that file: {exc}")
 
 
 async def handle_id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -240,6 +264,7 @@ def build_application(token, allowed_user_ids, session_service):
         handle_session_command,
         filters=private_chat,
     ))
+    application.add_handler(CommandHandler("delete", handle_delete_command, filters=private_chat))
     application.add_handler(
         MessageHandler(
             private_chat & filters.TEXT & ~filters.COMMAND,
