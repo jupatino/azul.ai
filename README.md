@@ -35,6 +35,14 @@ Run the test suite:
 uv run --frozen python -m unittest discover -s tests -v
 ```
 
+Measure test coverage:
+
+```bash
+uv run --frozen coverage run --branch --source=src/azul_ai \
+  -m unittest discover -s tests -v
+uv run --frozen coverage report --show-missing
+```
+
 The GitHub Actions `Tests` workflow runs the test suite on pull requests to
 `main`. The `main` branch ruleset requires the `test` check to pass before a
 pull request can be merged.

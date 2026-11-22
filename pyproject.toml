@@ -17,6 +17,11 @@ dependencies = [
     "python-telegram-bot>=22.5",
 ]
 
+[dependency-groups]
+dev = [
+    "coverage>=7.6",
+]
+
 [project.scripts]
 azul-ai = "azul_ai.cli:main"
 
