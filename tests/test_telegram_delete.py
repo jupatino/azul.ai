@@ -1,7 +1,18 @@
+import asyncio
 import unittest
-from unittest.mock import Mock
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock, patch
 
-from azul_ai.channels.telegram.app import process_delete_command
+from azul_ai.channels.telegram.app import (
+    build_application,
+    configured_user_ids,
+    normalize_telegram_message,
+    process_delete_command,
+    reply_in_parts,
+    split_reply,
+)
+from azul_ai.channels.telegram import app as telegram_app
+from azul_ai.core.agent_runtime import build_session_service
 
 
 class TelegramDeleteCommandTests(unittest.TestCase):
@@ -41,6 +52,80 @@ class TelegramDeleteCommandTests(unittest.TestCase):
 
         self.assertIn("Usage:", result)
         self.delete_file.assert_not_called()
+
+    def test_configured_user_ids_are_trimmed_and_deduplicated(self):
+        with patch.dict("os.environ", {"TELEGRAM_ALLOWED_USER_IDS": "123, 456,123"}):
+            self.assertEqual(configured_user_ids(), {"123", "456"})
+
+    def test_configured_user_ids_reject_non_numeric_values(self):
+        with patch.dict("os.environ", {"TELEGRAM_ALLOWED_USER_IDS": "123,not-an-id"}):
+            with self.assertRaisesRegex(ValueError, "must contain numeric"):
+                configured_user_ids()
+
+    def test_normalizes_private_message(self):
+        update = SimpleNamespace(
+            effective_message=SimpleNamespace(text="  hello  "),
+            effective_user=SimpleNamespace(id=123),
+            effective_chat=SimpleNamespace(id=456, type="private"),
+            update_id=789,
+        )
+
+        result = normalize_telegram_message(update)
+
+        self.assertEqual(result.channel, "telegram")
+        self.assertEqual(result.sender_id, "123")
+        self.assertEqual(result.conversation_id, "456")
+        self.assertEqual(result.thread_id, "456")
+        self.assertEqual(result.event_id, "789")
+        self.assertEqual(result.text, "hello")
+
+    def test_normalize_rejects_group_chat(self):
+        update = SimpleNamespace(
+            effective_message=SimpleNamespace(text="hello"),
+            effective_user=SimpleNamespace(id=123),
+            effective_chat=SimpleNamespace(id=456, type="group"),
+            update_id=789,
+        )
+
+        with self.assertRaisesRegex(ValueError, "Only private"):
+            normalize_telegram_message(update)
+
+    def test_split_reply_respects_limit_and_preserves_content(self):
+        text = ("word " * 1200).strip()
+
+        parts = split_reply(text, limit=100)
+
+        self.assertGreater(len(parts), 1)
+        self.assertTrue(all(len(part) <= 100 for part in parts))
+        self.assertEqual(" ".join(parts), text)
+
+    def test_split_reply_splits_unbroken_long_text(self):
+        parts = split_reply("x" * 25, limit=10)
+
+        self.assertEqual(parts, ["x" * 10, "x" * 10, "x" * 5])
+
+    def test_reply_in_parts_sends_each_chunk(self):
+        message = SimpleNamespace(reply_text=AsyncMock())
+
+        with patch.object(telegram_app, "split_reply", return_value=["first", "second"]) as split:
+            asyncio.run(reply_in_parts(message, "a" * 12))
+
+        split.assert_called_once_with("a" * 12)
+        self.assertEqual(
+            [call.args[0] for call in message.reply_text.await_args_list],
+            ["first", "second"],
+        )
+
+    def test_delete_command_is_registered_for_private_chats(self):
+        application = build_application("123456:placeholder", {"123"}, build_session_service())
+
+        handlers = [handler for group in application.handlers.values() for handler in group]
+        delete_handlers = [
+            handler for handler in handlers
+            if "delete" in getattr(handler, "commands", set())
+        ]
+
+        self.assertEqual(len(delete_handlers), 1)
 
 
 if __name__ == "__main__":
