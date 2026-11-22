@@ -31,27 +31,27 @@ jobs:
           case "$PR_ACTION" in
             closed)
               if [[ "$PR_MERGED" == "true" ]]; then
-                status_icon=":white_check_mark:"
+                status_icon=":small_green_diamond:"
                 status_label="Pull request merged"
               else
-                status_icon=":no_entry_sign:"
+                status_icon=":small_red_triangle:"
                 status_label="Pull request closed"
               fi
               ;;
             synchronize)
-              status_icon=":arrows_counterclockwise:"
+              status_icon=":small_orange_diamond:"
               status_label="Pull request updated"
               ;;
             ready_for_review)
-              status_icon=":eyes:"
+              status_icon=":small_green_diamond:"
               status_label="Ready for review"
               ;;
             reopened)
-              status_icon=":arrows_counterclockwise:"
+              status_icon=":small_blue_diamond:"
               status_label="Pull request reopened"
               ;;
             *)
-              status_icon=":new:"
+              status_icon=":small_blue_diamond:"
               status_label="New pull request"
               ;;
           esac
