@@ -4,7 +4,9 @@ on:
   pull_request_target:
     types: [opened, reopened, ready_for_review, synchronize, closed]
 
-permissions: {}
+permissions:
+  issues: write
+  pull-requests: read
 
 jobs:
   notify:
@@ -14,6 +16,8 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           PR_ACTION: ${{ github.event.action }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
@@ -27,6 +31,16 @@ jobs:
           if [[ -z "$SLACK_BOT_TOKEN" || -z "$SLACK_CHANNEL_ID" ]]; then
             echo "::error::Configure SLACK_BOT_TOKEN and SLACK_CHANNEL_ID with the existing azul.ai bot."
             exit 1
+          fi
+
+          merge_marker="<!-- slack-merge-notified -->"
+          if [[ "$PR_ACTION" == "closed" && "$PR_MERGED" == "true" ]]; then
+            notified="$(gh pr view "$PR_NUMBER" --json comments \
+              --jq 'any(.comments[]?; .body == "<!-- slack-merge-notified -->")')"
+            if [[ "$notified" == "true" ]]; then
+              echo "The merge notification for PR #$PR_NUMBER was already sent."
+              exit 0
+            fi
           fi
 
           case "$PR_ACTION" in
@@ -113,6 +127,9 @@ jobs:
               error="$(jq -r '.error // "unknown_error"' <<<"$response")"
               echo "::error::Slack API rejected the PR notification: $error"
               exit 1
+            fi
+            if [[ "$PR_ACTION" == "closed" && "$PR_MERGED" == "true" ]]; then
+              gh pr comment "$PR_NUMBER" --body "$merge_marker"
             fi
           else
             echo "::error::The azul.ai bot credentials are required to send PR notifications."
