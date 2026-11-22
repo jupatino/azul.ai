@@ -90,7 +90,8 @@ The `Slack PR notifications` GitHub Actions workflow posts to Slack when a pull
 request is opened, reopened, marked ready for review, receives new commits, or
 is closed. Add a repository Actions secret named `SLACK_WEBHOOK_URL` with an
 Incoming Webhook URL configured for the `#pull-requests` channel. The workflow
-does not check out or execute pull request code.
+does not check out or execute pull request code. PR notifications use the
+repository's compact GitHub open and merged status icons.
 
 The agent's file tools are restricted to `skills/`, which Compose bind-mounts
 from this host project to `/app/skills` in the container. Created files remain

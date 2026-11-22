@@ -31,37 +31,74 @@ jobs:
           case "$PR_ACTION" in
             closed)
               if [[ "$PR_MERGED" == "true" ]]; then
-                status_icon=":small_green_diamond:"
+                status_icon_url="https://raw.githubusercontent.com/jupatino/azul.ai/main/assets/slack/pr-merged.png"
                 status_label="Pull request merged"
               else
-                status_icon=":small_red_triangle:"
+                status_icon_url=""
                 status_label="Pull request closed"
               fi
               ;;
             synchronize)
-              status_icon=":small_orange_diamond:"
+              status_icon_url="https://raw.githubusercontent.com/jupatino/azul.ai/main/assets/slack/pr-open.png"
               status_label="Pull request updated"
               ;;
             ready_for_review)
-              status_icon=":small_green_diamond:"
+              status_icon_url="https://raw.githubusercontent.com/jupatino/azul.ai/main/assets/slack/pr-open.png"
               status_label="Ready for review"
               ;;
             reopened)
-              status_icon=":small_blue_diamond:"
+              status_icon_url="https://raw.githubusercontent.com/jupatino/azul.ai/main/assets/slack/pr-open.png"
               status_label="Pull request reopened"
               ;;
             *)
-              status_icon=":small_blue_diamond:"
+              status_icon_url="https://raw.githubusercontent.com/jupatino/azul.ai/main/assets/slack/pr-open.png"
               status_label="New pull request"
               ;;
           esac
 
-          printf -v message '%s *%s*\n<%s|PR #%s: %s>\nAuthor: %s | Base: %s' \
-            "$status_icon" "$status_label" "$PR_URL" "$PR_NUMBER" "$PR_TITLE" \
-            "$PR_AUTHOR" "$PR_BASE"
+          printf -v fallback_text '%s: PR #%s: %s\nAuthor: %s | Base: %s\n%s' \
+            "$status_label" "$PR_NUMBER" "$PR_TITLE" "$PR_AUTHOR" "$PR_BASE" "$PR_URL"
           payload="$(jq -n \
-            --arg text "$message" \
-            '{text: $text, mrkdwn: true}')"
+            --arg text "$fallback_text" \
+            --arg status "$status_label" \
+            --arg icon_url "$status_icon_url" \
+            --arg pr_url "$PR_URL" \
+            --arg pr_number "$PR_NUMBER" \
+            --arg pr_title "$PR_TITLE" \
+            --arg author "$PR_AUTHOR" \
+            --arg base "$PR_BASE" \
+            '{
+              text: $text,
+              blocks: [
+                {
+                  type: "context",
+                  elements: (
+                    (if $icon_url == "" then [] else [{
+                      type: "image",
+                      image_url: $icon_url,
+                      alt_text: $status
+                    }] end) + [{
+                      type: "mrkdwn",
+                      text: ("*" + $status + "*")
+                    }]
+                  )
+                },
+                {
+                  type: "section",
+                  text: {
+                    type: "mrkdwn",
+                    text: ("<" + $pr_url + "|PR #" + $pr_number + ": " + $pr_title + ">")
+                  }
+                },
+                {
+                  type: "context",
+                  elements: [{
+                    type: "mrkdwn",
+                    text: ("Author: " + $author + " | Base: " + $base)
+                  }]
+                }
+              ]
+            }')"
 
           curl --fail --silent --show-error \
             -H "Content-Type: application/json" \
