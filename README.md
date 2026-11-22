@@ -91,7 +91,10 @@ request is opened, reopened, marked ready for review, receives new commits, or
 is closed. Add a repository Actions secret named `SLACK_WEBHOOK_URL` with an
 Incoming Webhook URL configured for the `#pull-requests` channel. The workflow
 does not check out or execute pull request code. PR notifications use the
-repository's compact GitHub open and merged status icons.
+repository's compact GitHub open and merged status icons, rendered from the
+[Primer Octicons Git Pull Request](https://github.com/primer/octicons/blob/main/icons/git-pull-request-16.svg)
+and [Git Merge](https://github.com/primer/octicons/blob/main/icons/git-merge-16.svg)
+vectors as high-resolution PNGs for Slack.
 The `Tests` workflow uses compact status icons for tests starting, passing,
 failing, and being cancelled.
 
