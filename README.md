@@ -36,8 +36,8 @@ uv run --frozen python -m unittest discover -s tests -v
 ```
 
 The GitHub Actions `Tests` workflow runs the test suite on pull requests to
-`main`. Configure this check as required in repository branch protection to
-prevent merging a pull request while tests fail or are pending.
+`main`. The `main` branch ruleset requires the `test` check to pass before a
+pull request can be merged.
 
 ## Slack over HTTP
 
