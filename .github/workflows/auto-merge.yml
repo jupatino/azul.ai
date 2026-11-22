@@ -18,12 +18,17 @@ jobs:
     steps:
       - name: Enable auto-merge for pull requests
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN }}
           GH_REPO: ${{ github.repository }}
           EVENT_NAME: ${{ github.event_name }}
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
           set -euo pipefail
+
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::error::Configure the AUTO_MERGE_TOKEN Actions secret with a fine-grained token for this repository."
+            exit 1
+          fi
 
           enable_auto_merge() {
             local pr_url="$1"
