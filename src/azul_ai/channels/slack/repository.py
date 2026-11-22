@@ -1,22 +1,7 @@
 from uuid import uuid4
 
+from azul_ai.core.agent_runtime import SYSTEM_PROMPT
 from azul_ai.core.db import initialize_session_tables, save_message
-
-
-SYSTEM_PROMPT = (
-    "You are a helpful assistant communicating through Slack. "
-    "You have these tools: list_files, read_file, write_file, and run_command. "
-    "When asked what tools you have, list them and explain their limits; do not claim that tools are unavailable. "
-    "Use them when helpful. File tools can only access the persistent skills directory, "
-    "not application or other container files, and enforce a 100 KB file-size limit. "
-    "Files in the skills directory are stored on the host and survive service restarts. "
-    "run_command accepts only pwd and ls, and runs them in the skills directory; "
-    "arbitrary shell commands are not allowed. "
-    "Respond to the user's message directly. Do not add a greeting unless they greeted you, "
-    "and do not end with generic follow-up questions or invitations. "
-    "Ask a question only when required to clarify or complete the user's request. "
-    "Answer clearly and concisely."
-)
 
 
 def initialize_slack_tables(connection):
@@ -78,20 +63,6 @@ def get_or_create_thread_session(connection, team_id, channel_id, thread_ts):
             (team_id, channel_id, thread_ts, session_id),
         )
         return session_id
-
-
-def refresh_session_system_prompt(connection, session_id):
-    with connection.transaction():
-        cursor = connection.execute(
-            """
-            UPDATE agent_session_messages
-            SET message = jsonb_set(message, '{content}', to_jsonb(%s::text), true)
-            WHERE session_id = %s AND message->>'role' = 'system'
-            """,
-            (SYSTEM_PROMPT, session_id),
-        )
-        if cursor.rowcount == 0:
-            raise RuntimeError(f"Slack session {session_id} has no system prompt to refresh.")
 
 
 def get_command_session(connection, team_id, channel_id):

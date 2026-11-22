@@ -1,6 +1,6 @@
 # azul.ai
 
-Slack-connected AI agent with PostgreSQL-backed conversations and a
+Multi-channel AI agent with PostgreSQL-backed conversations and a
 host-persistent `skills/` directory.
 
 ## Requirements
@@ -29,6 +29,24 @@ uv sync
 uv run azul-ai
 ```
 
+Run the test suite:
+
+```bash
+uv run --frozen python -m unittest discover -s tests -v
+```
+
+Measure test coverage:
+
+```bash
+uv run --frozen coverage run --branch --source=src/azul_ai \
+  -m unittest discover -s tests -v
+uv run --frozen coverage report --show-missing
+```
+
+The GitHub Actions `Tests` workflow runs the test suite on pull requests to
+`main`. The `main` branch ruleset requires the `test` check to pass before a
+pull request can be merged.
+
 ## Slack over HTTP
 
 Start the Slack receiver:
@@ -45,6 +63,27 @@ the Slack app's Events API and each slash command to use
 `message.im` bot events and grant `app_mentions:read`, `im:history`, and
 `chat:write`. Custom slash commands cannot be invoked in message threads.
 
+## Telegram private chats
+
+Create a Telegram bot with [@BotFather](https://telegram.me/BotFather), then set
+`TELEGRAM_BOT_TOKEN` in `.env`. Start the service once and send `/id` to get
+your numeric user ID; while the allowlist is empty, the bot only responds to
+that command. Add authorized IDs to `TELEGRAM_ALLOWED_USER_IDS`, separated by
+commas, then restart the service. Only private chats are handled; groups are
+ignored. Each private chat has its own persistent session, and `/new`, `/reset`,
+and `/compact` manage that session. Delete a regular file in `skills/` with
+`/delete <path>`; directories, symbolic links, and paths outside `skills/` are
+rejected.
+
+Run Telegram as an opt-in polling service alongside Slack:
+
+```bash
+docker compose --profile telegram up --build -d azul-ai-telegram
+docker compose logs -f azul-ai-telegram
+```
+
+Polling does not require a public HTTPS endpoint. Keep the bot token private.
+
 ## Slack pull request notifications
 
 The `Slack PR notifications` GitHub Actions workflow posts to Slack when a pull
@@ -56,6 +95,8 @@ does not check out or execute pull request code.
 The agent's file tools are restricted to `skills/`, which Compose bind-mounts
 from this host project to `/app/skills` in the container. Created files remain
 on the host after container recreation. File sizes are limited to 100 KB.
+The agent can delete regular files in `skills/`, but cannot delete directories
+or symbolic links.
 `run_command` allows only `pwd` and `ls` in `skills/`; arbitrary shell commands
 are disabled.
 
@@ -84,6 +125,7 @@ cannot be determined safely.
 - `src/azul_ai/cli.py` — local interactive CLI entry point
 - `src/azul_ai/channels/base.py` — normalized incoming-message contract
 - `src/azul_ai/channels/slack/` — Slack Bolt and Flask adapter
-- `src/azul_ai/channels/whatsapp/` and `src/azul_ai/channels/telegram/` — reserved adapters
+- `src/azul_ai/channels/telegram/` — Telegram polling adapter
+- `src/azul_ai/channels/whatsapp/` — reserved adapter
 - `src/azul_ai/tools/local.py` — confirmed local command and file tools
 - `src/azul_ai/tools/skills.py` — restricted persistent-skills tools

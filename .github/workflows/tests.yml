@@ -1,0 +1,98 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Slack that tests started
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
+            echo "::warning::SLACK_WEBHOOK_URL is not configured; skipping Slack notification."
+            exit 0
+          fi
+
+          printf -v message ':hourglass_flowing_sand: *Tests started*\n<%s|PR #%s: %s>' \
+            "$PR_URL" "$PR_NUMBER" "$PR_TITLE"
+          payload="$(jq -n --arg text "$message" '{text: $text, mrkdwn: true}')"
+          curl --fail --silent --show-error \
+            -H "Content-Type: application/json" \
+            --data "$payload" \
+            "$SLACK_WEBHOOK_URL"
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.15"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run tests with coverage
+        run: |
+          uv run --frozen coverage run --branch --source=src/azul_ai \
+            -m unittest discover -s tests -v
+          uv run --frozen coverage report --show-missing
+
+      - name: Compile source
+        run: uv run --frozen python -m compileall -q src tests
+
+      - name: Notify Slack that tests completed
+        if: always()
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          TEST_STATUS: ${{ job.status }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
+            echo "::warning::SLACK_WEBHOOK_URL is not configured; skipping Slack notification."
+            exit 0
+          fi
+
+          case "$TEST_STATUS" in
+            success)
+              status_icon=":white_check_mark:"
+              status_label="Tests passed"
+              ;;
+            failure)
+              status_icon=":x:"
+              status_label="Tests failed"
+              ;;
+            cancelled)
+              status_icon=":warning:"
+              status_label="Tests cancelled"
+              ;;
+            *)
+              status_icon=":information_source:"
+              status_label="Tests ${TEST_STATUS}"
+              ;;
+          esac
+
+          printf -v message '%s *%s*\n<%s|PR #%s: %s>' \
+            "$status_icon" "$status_label" "$PR_URL" "$PR_NUMBER" "$PR_TITLE"
+          payload="$(jq -n --arg text "$message" '{text: $text, mrkdwn: true}')"
+          curl --fail --silent --show-error \
+            -H "Content-Type: application/json" \
+            --data "$payload" \
+            "$SLACK_WEBHOOK_URL"
