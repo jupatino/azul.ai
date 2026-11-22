@@ -19,6 +19,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_URL: ${{ github.event.pull_request.html_url }}
+          ICON_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.event.pull_request.head.sha }}/assets/slack/tests-started.png
         run: |
           set -euo pipefail
           if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
@@ -26,9 +27,25 @@ jobs:
             exit 0
           fi
 
-          printf -v message ':small_orange_diamond: *Tests started*\n<%s|PR #%s: %s>' \
-            "$PR_URL" "$PR_NUMBER" "$PR_TITLE"
-          payload="$(jq -n --arg text "$message" '{text: $text, mrkdwn: true}')"
+          status_label="Tests started"
+          printf -v message '%s\nPR #%s: %s' "$status_label" "$PR_NUMBER" "$PR_TITLE"
+          payload="$(jq -n \
+            --arg text "$message" \
+            --arg icon_url "$ICON_URL" \
+            --arg status_label "$status_label" \
+            --arg pr_url "$PR_URL" \
+            --arg pr_number "$PR_NUMBER" \
+            --arg pr_title "$PR_TITLE" \
+            '{
+              text: $text,
+              blocks: [
+                {type: "context", elements: [
+                  {type: "image", image_url: $icon_url, alt_text: $status_label},
+                  {type: "mrkdwn", text: ("*" + $status_label + "*")}
+                ]},
+                {type: "section", text: {type: "mrkdwn", text: ("<" + $pr_url + "|PR #" + $pr_number + ": " + $pr_title + ">")}}
+              ]
+            }')"
           curl --fail --silent --show-error \
             -H "Content-Type: application/json" \
             --data "$payload" \
@@ -63,6 +80,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_URL: ${{ github.event.pull_request.html_url }}
+          ICON_REVISION: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
@@ -72,26 +90,51 @@ jobs:
 
           case "$TEST_STATUS" in
             success)
-              status_icon=":small_green_diamond:"
+              icon_file="tests-passed.png"
               status_label="Tests passed"
               ;;
             failure)
-              status_icon=":small_red_triangle:"
+              icon_file="tests-failed.png"
               status_label="Tests failed"
               ;;
             cancelled)
-              status_icon=":small_orange_diamond:"
+              icon_file="tests-cancelled.png"
               status_label="Tests cancelled"
               ;;
             *)
-              status_icon=":small_blue_diamond:"
+              icon_file=""
               status_label="Tests ${TEST_STATUS}"
               ;;
           esac
 
-          printf -v message '%s *%s*\n<%s|PR #%s: %s>' \
-            "$status_icon" "$status_label" "$PR_URL" "$PR_NUMBER" "$PR_TITLE"
-          payload="$(jq -n --arg text "$message" '{text: $text, mrkdwn: true}')"
+          icon_url=""
+          if [[ -n "$icon_file" ]]; then
+            icon_url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${ICON_REVISION}/assets/slack/${icon_file}"
+          fi
+          printf -v message '%s\nPR #%s: %s' "$status_label" "$PR_NUMBER" "$PR_TITLE"
+          payload="$(jq -n \
+            --arg text "$message" \
+            --arg icon_url "$icon_url" \
+            --arg status_label "$status_label" \
+            --arg pr_url "$PR_URL" \
+            --arg pr_number "$PR_NUMBER" \
+            --arg pr_title "$PR_TITLE" \
+            '{
+              text: $text,
+              blocks: [
+                {type: "context", elements:
+                  (if $icon_url == "" then
+                    [{type: "mrkdwn", text: ("*" + $status_label + "*")}]
+                  else
+                    [
+                      {type: "image", image_url: $icon_url, alt_text: $status_label},
+                      {type: "mrkdwn", text: ("*" + $status_label + "*")}
+                    ]
+                  end)
+                },
+                {type: "section", text: {type: "mrkdwn", text: ("<" + $pr_url + "|PR #" + $pr_number + ": " + $pr_title + ">")}}
+              ]
+            }')"
           curl --fail --silent --show-error \
             -H "Content-Type: application/json" \
             --data "$payload" \
