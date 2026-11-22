@@ -26,7 +26,7 @@ jobs:
             exit 0
           fi
 
-          printf -v message ':hourglass_flowing_sand: *Tests started*\n<%s|PR #%s: %s>' \
+          printf -v message ':small_orange_diamond: *Tests started*\n<%s|PR #%s: %s>' \
             "$PR_URL" "$PR_NUMBER" "$PR_TITLE"
           payload="$(jq -n --arg text "$message" '{text: $text, mrkdwn: true}')"
           curl --fail --silent --show-error \
@@ -72,19 +72,19 @@ jobs:
 
           case "$TEST_STATUS" in
             success)
-              status_icon=":white_check_mark:"
+              status_icon=":small_green_diamond:"
               status_label="Tests passed"
               ;;
             failure)
-              status_icon=":x:"
+              status_icon=":small_red_triangle:"
               status_label="Tests failed"
               ;;
             cancelled)
-              status_icon=":warning:"
+              status_icon=":small_orange_diamond:"
               status_label="Tests cancelled"
               ;;
             *)
-              status_icon=":information_source:"
+              status_icon=":small_blue_diamond:"
               status_label="Tests ${TEST_STATUS}"
               ;;
           esac
