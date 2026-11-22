@@ -20,7 +20,6 @@ jobs:
           PR_BASE: ${{ github.event.pull_request.base.ref }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           PR_MERGED: ${{ github.event.pull_request.merged }}
-          BOT_ICON_URL: https://raw.githubusercontent.com/jupatino/azul.ai/main/azul-agent-icon.png
         run: |
           set -euo pipefail
 
@@ -32,38 +31,31 @@ jobs:
           case "$PR_ACTION" in
             closed)
               if [[ "$PR_MERGED" == "true" ]]; then
-                status_icon=":white_check_mark:"
-                status_label="Pull request merged"
+                status="merged"
               else
-                status_icon=":no_entry_sign:"
-                status_label="Pull request closed"
+                status="closed"
               fi
+              message="Pull request #${PR_NUMBER} ${status}: ${PR_TITLE}"
               ;;
             synchronize)
-              status_icon=":arrows_counterclockwise:"
-              status_label="Pull request updated"
+              message="New commits pushed to pull request #${PR_NUMBER}: ${PR_TITLE}"
               ;;
             ready_for_review)
-              status_icon=":eyes:"
-              status_label="Ready for review"
+              message="Pull request #${PR_NUMBER} is ready for review: ${PR_TITLE}"
               ;;
             reopened)
-              status_icon=":arrows_counterclockwise:"
-              status_label="Pull request reopened"
+              message="Pull request #${PR_NUMBER} reopened: ${PR_TITLE}"
               ;;
             *)
-              status_icon=":new:"
-              status_label="New pull request"
+              message="Pull request #${PR_NUMBER} opened: ${PR_TITLE}"
               ;;
           esac
 
-          printf -v message '%s *%s*\n<%s|PR #%s: %s>\nAuthor: %s | Base: %s' \
-            "$status_icon" "$status_label" "$PR_URL" "$PR_NUMBER" "$PR_TITLE" \
-            "$PR_AUTHOR" "$PR_BASE"
+          printf -v message '%s\nAuthor: %s | Base: %s\n%s' \
+            "$message" "$PR_AUTHOR" "$PR_BASE" "$PR_URL"
           payload="$(jq -n \
             --arg text "$message" \
-            --arg icon_url "$BOT_ICON_URL" \
-            '{text: $text, mrkdwn: true, username: "azul.ai", icon_url: $icon_url}')"
+            '{text: $text, mrkdwn: false}')"
 
           curl --fail --silent --show-error \
             -H "Content-Type: application/json" \

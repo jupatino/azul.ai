@@ -19,7 +19,6 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_URL: ${{ github.event.pull_request.html_url }}
-          BOT_ICON_URL: https://raw.githubusercontent.com/jupatino/azul.ai/main/azul-agent-icon.png
         run: |
           set -euo pipefail
           if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
@@ -27,12 +26,9 @@ jobs:
             exit 0
           fi
 
-          printf -v message ':hourglass_flowing_sand: *Tests started*\n<%s|PR #%s: %s>' \
-            "$PR_URL" "$PR_NUMBER" "$PR_TITLE"
-          payload="$(jq -n \
-            --arg text "$message" \
-            --arg icon_url "$BOT_ICON_URL" \
-            '{text: $text, mrkdwn: true, username: "azul.ai", icon_url: $icon_url}')"
+          printf -v message 'Tests started for PR #%s: %s\n%s' \
+            "$PR_NUMBER" "$PR_TITLE" "$PR_URL"
+          payload="$(jq -n --arg text "$message" '{text: $text, mrkdwn: false}')"
           curl --fail --silent --show-error \
             -H "Content-Type: application/json" \
             --data "$payload" \
@@ -67,7 +63,6 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_URL: ${{ github.event.pull_request.html_url }}
-          BOT_ICON_URL: https://raw.githubusercontent.com/jupatino/azul.ai/main/azul-agent-icon.png
         run: |
           set -euo pipefail
           if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
@@ -77,29 +72,24 @@ jobs:
 
           case "$TEST_STATUS" in
             success)
-              status_icon=":white_check_mark:"
-              status_label="Tests passed"
+              status="success"
               ;;
             failure)
-              status_icon=":x:"
-              status_label="Tests failed"
+              status="failure"
               ;;
             cancelled)
-              status_icon=":warning:"
-              status_label="Tests cancelled"
+              status="cancelled"
               ;;
             *)
-              status_icon=":information_source:"
-              status_label="Tests ${TEST_STATUS}"
+              status="$TEST_STATUS"
               ;;
           esac
 
-          printf -v message '%s *%s*\n<%s|PR #%s: %s>' \
-            "$status_icon" "$status_label" "$PR_URL" "$PR_NUMBER" "$PR_TITLE"
+          printf -v message 'Tests %s for PR #%s: %s\n%s' \
+            "$status" "$PR_NUMBER" "$PR_TITLE" "$PR_URL"
           payload="$(jq -n \
             --arg text "$message" \
-            --arg icon_url "$BOT_ICON_URL" \
-            '{text: $text, mrkdwn: true, username: "azul.ai", icon_url: $icon_url}')"
+            '{text: $text, mrkdwn: false}')"
           curl --fail --silent --show-error \
             -H "Content-Type: application/json" \
             --data "$payload" \
