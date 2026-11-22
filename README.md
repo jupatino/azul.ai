@@ -88,9 +88,14 @@ Polling does not require a public HTTPS endpoint. Keep the bot token private.
 
 The `Slack PR notifications` GitHub Actions workflow posts to Slack when a pull
 request is opened, reopened, marked ready for review, receives new commits, or
-is closed. Add a repository Actions secret named `SLACK_WEBHOOK_URL` with an
-Incoming Webhook URL configured for the `#pull-requests` channel. The workflow
-does not check out or execute pull request code. PR notifications use the
+is closed. The workflows can use an Incoming Webhook URL in the
+`SLACK_WEBHOOK_URL` Actions secret. To show the Azul icon as the sender avatar,
+instead add `SLACK_BOT_TOKEN` and `SLACK_CHANNEL_ID` secrets and grant the Slack
+app the `chat:write` and `chat:write.customize` bot scopes; reinstall the app
+after granting those scopes. Add the bot to the destination channel. Webhook
+notifications continue working if the bot-token secrets are not configured,
+but use the avatar configured on the Slack app. The PR workflow does not check
+out or execute pull request code. PR notifications use the
 repository's compact GitHub open and merged status icons, rendered from the
 [Primer Octicons Git Pull Request](https://github.com/primer/octicons/blob/main/icons/git-pull-request-16.svg)
 and [Git Merge](https://github.com/primer/octicons/blob/main/icons/git-merge-16.svg)

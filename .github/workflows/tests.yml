@@ -16,19 +16,25 @@ jobs:
         continue-on-error: true
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           ICON_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.event.pull_request.head.sha }}/assets/slack/tests-started.png
         run: |
           set -euo pipefail
-          if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
-            echo "::warning::SLACK_WEBHOOK_URL is not configured; skipping Slack notification."
+          if [[ -z "$SLACK_BOT_TOKEN" && -z "$SLACK_CHANNEL_ID" && -z "$SLACK_WEBHOOK_URL" ]]; then
+            echo "::warning::Slack notification credentials are not configured; skipping Slack notification."
             exit 0
           fi
 
           status_label="Tests started"
           printf -v message '%s\nPR #%s: %s' "$status_label" "$PR_NUMBER" "$PR_TITLE"
+          customize_sender=false
+          if [[ -n "$SLACK_BOT_TOKEN" && -n "$SLACK_CHANNEL_ID" ]]; then
+            customize_sender=true
+          fi
           payload="$(jq -n \
             --arg text "$message" \
             --arg icon_url "$ICON_URL" \
@@ -36,6 +42,9 @@ jobs:
             --arg pr_url "$PR_URL" \
             --arg pr_number "$PR_NUMBER" \
             --arg pr_title "$PR_TITLE" \
+            --arg channel "$SLACK_CHANNEL_ID" \
+            --arg avatar_url "https://raw.githubusercontent.com/jupatino/azul.ai/main/azul-agent-icon.png" \
+            --argjson customize_sender "$customize_sender" \
             '{
               text: $text,
               blocks: [
@@ -45,11 +54,31 @@ jobs:
                 ]},
                 {type: "section", text: {type: "mrkdwn", text: ("<" + $pr_url + "|PR #" + $pr_number + ": " + $pr_title + ">")}}
               ]
-            }')"
-          curl --fail --silent --show-error \
-            -H "Content-Type: application/json" \
-            --data "$payload" \
-            "$SLACK_WEBHOOK_URL"
+            } + (if $customize_sender then {
+              channel: $channel,
+              username: "azul.ai AGENT",
+              icon_url: $avatar_url
+            } end)')"
+          if [[ -n "$SLACK_BOT_TOKEN" && -n "$SLACK_CHANNEL_ID" ]]; then
+            response="$(curl --fail --silent --show-error \
+              -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+              -H "Content-Type: application/json; charset=utf-8" \
+              --data "$payload" \
+              https://slack.com/api/chat.postMessage)"
+            if ! jq -e '.ok == true' <<<"$response" >/dev/null; then
+              error="$(jq -r '.error // "unknown_error"' <<<"$response")"
+              echo "::error::Slack API rejected the test-start notification: $error"
+              exit 1
+            fi
+          elif [[ -n "$SLACK_WEBHOOK_URL" ]]; then
+            echo "::warning::Using Slack webhook; configure SLACK_BOT_TOKEN and SLACK_CHANNEL_ID with chat:write.customize to show the Azul sender avatar."
+            curl --fail --silent --show-error \
+              -H "Content-Type: application/json" \
+              --data "$payload" \
+              "$SLACK_WEBHOOK_URL"
+          else
+            echo "::warning::Slack notification skipped; configure both SLACK_BOT_TOKEN and SLACK_CHANNEL_ID."
+          fi
 
       - name: Check out repository
         uses: actions/checkout@v4
@@ -76,6 +105,8 @@ jobs:
         continue-on-error: true
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
           TEST_STATUS: ${{ job.status }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
@@ -83,8 +114,8 @@ jobs:
           ICON_REVISION: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
-            echo "::warning::SLACK_WEBHOOK_URL is not configured; skipping Slack notification."
+          if [[ -z "$SLACK_BOT_TOKEN" && -z "$SLACK_CHANNEL_ID" && -z "$SLACK_WEBHOOK_URL" ]]; then
+            echo "::warning::Slack notification credentials are not configured; skipping Slack notification."
             exit 0
           fi
 
@@ -112,6 +143,10 @@ jobs:
             icon_url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${ICON_REVISION}/assets/slack/${icon_file}"
           fi
           printf -v message '%s\nPR #%s: %s' "$status_label" "$PR_NUMBER" "$PR_TITLE"
+          customize_sender=false
+          if [[ -n "$SLACK_BOT_TOKEN" && -n "$SLACK_CHANNEL_ID" ]]; then
+            customize_sender=true
+          fi
           payload="$(jq -n \
             --arg text "$message" \
             --arg icon_url "$icon_url" \
@@ -119,6 +154,9 @@ jobs:
             --arg pr_url "$PR_URL" \
             --arg pr_number "$PR_NUMBER" \
             --arg pr_title "$PR_TITLE" \
+            --arg channel "$SLACK_CHANNEL_ID" \
+            --arg avatar_url "https://raw.githubusercontent.com/jupatino/azul.ai/main/azul-agent-icon.png" \
+            --argjson customize_sender "$customize_sender" \
             '{
               text: $text,
               blocks: [
@@ -134,8 +172,28 @@ jobs:
                 },
                 {type: "section", text: {type: "mrkdwn", text: ("<" + $pr_url + "|PR #" + $pr_number + ": " + $pr_title + ">")}}
               ]
-            }')"
-          curl --fail --silent --show-error \
-            -H "Content-Type: application/json" \
-            --data "$payload" \
-            "$SLACK_WEBHOOK_URL"
+            } + (if $customize_sender then {
+              channel: $channel,
+              username: "azul.ai AGENT",
+              icon_url: $avatar_url
+            } end)')"
+          if [[ -n "$SLACK_BOT_TOKEN" && -n "$SLACK_CHANNEL_ID" ]]; then
+            response="$(curl --fail --silent --show-error \
+              -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+              -H "Content-Type: application/json; charset=utf-8" \
+              --data "$payload" \
+              https://slack.com/api/chat.postMessage)"
+            if ! jq -e '.ok == true' <<<"$response" >/dev/null; then
+              error="$(jq -r '.error // "unknown_error"' <<<"$response")"
+              echo "::error::Slack API rejected the test-completion notification: $error"
+              exit 1
+            fi
+          elif [[ -n "$SLACK_WEBHOOK_URL" ]]; then
+            echo "::warning::Using Slack webhook; configure SLACK_BOT_TOKEN and SLACK_CHANNEL_ID with chat:write.customize to show the Azul sender avatar."
+            curl --fail --silent --show-error \
+              -H "Content-Type: application/json" \
+              --data "$payload" \
+              "$SLACK_WEBHOOK_URL"
+          else
+            echo "::warning::Slack notification skipped; configure both SLACK_BOT_TOKEN and SLACK_CHANNEL_ID."
+          fi
