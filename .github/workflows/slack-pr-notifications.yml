@@ -63,7 +63,13 @@ jobs:
           payload="$(jq -n \
             --arg text "$message" \
             --arg image_url "$BOT_ICON_URL" \
-            '{text: $text, blocks: [{type: "section", text: {type: "mrkdwn", text: $text}, accessory: {type: "image", image_url: $image_url, alt_text: "Azul AI bot"}}]}')"
+            '{text: $text, blocks: [
+              {type: "section", text: {type: "mrkdwn", text: $text}},
+              {type: "context", elements: [
+                {type: "image", image_url: $image_url, alt_text: "Azul AI"},
+                {type: "mrkdwn", text: "azul.ai"}
+              ]}
+            ]}')"
 
           curl --fail --silent --show-error \
             -H "Content-Type: application/json" \
