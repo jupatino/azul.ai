@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Azul — Capabilities</title>
+<style>
+  body {
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: #0c4a6e;
+    font-family: 'Segoe UI', Arial, sans-serif;
+  }
+  .slide {
+    width: 960px;
+    height: 540px;
+    background: linear-gradient(135deg, #082f49 0%, #0369a1 100%);
+    color: #f0f9ff;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    padding: 48px 56px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+  }
+  h1 {
+    margin: 0 0 8px 0;
+    font-size: 40px;
+  }
+  .subtitle {
+    font-size: 18px;
+    opacity: 0.85;
+    margin-bottom: 28px;
+  }
+  ul {
+    margin: 0;
+    padding-left: 28px;
+    font-size: 20px;
+    line-height: 1.9;
+  }
+  li strong { color: #7dd3fc; }
+  .footer {
+    margin-top: auto;
+    font-size: 14px;
+    opacity: 0.7;
+    border-top: 1px solid rgba(255,255,255,0.25);
+    padding-top: 12px;
+  }
+</style>
+</head>
+<body>
+  <div class="slide">
+    <h1>Azul — Your AI Agent</h1>
+    <div class="subtitle">Blue-light calm, one conversation away</div>
+    <ul>
+      <li><strong>Conversational assistant</strong> — answers questions, remembers your name, and helps with tasks in Slack.</li>
+      <li><strong>List files</strong> — shows what's in the dedicated skills directory.</li>
+      <li><strong>Read files</strong> — displays the contents of saved files (up to 100&nbsp;KB).</li>
+      <li><strong>Write files</strong> — creates or replaces files in the skills directory (up to 100&nbsp;KB).</li>
+      <li><strong>Run basic commands</strong> — limited to <code>pwd</code> and <code>ls</code>.</li>
+      <li><strong>Persistent storage</strong> — files created survive service restarts (bind-mounted to the host).</li>
+    </ul>
+    <div class="footer">Note: Files tools are restricted to the designated directory only — no access to other container or application files.</div>
+  </div>
+</body>
+</html>

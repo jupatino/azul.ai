@@ -1,0 +1,15 @@
+services:
+  azul-ai-agent:
+    container_name: azul-ai-agent
+    image: azul-ai-agent:latest
+    build: .
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: host.docker.internal
+      AZUL_AGENT_SKILLS_DIR: /app/skills
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./skills:/app/skills
+    restart: unless-stopped

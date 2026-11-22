@@ -1,1 +1,81 @@
 # azul.ai
+
+Slack-connected AI agent with PostgreSQL-backed conversations and a
+host-persistent `skills/` directory.
+
+## Requirements
+
+- Python 3.15 and [uv](https://docs.astral.sh/uv/)
+- Docker Compose
+- A PostgreSQL database reachable from the host and Docker container
+- OpenRouter API key
+- Slack app credentials and a publicly reachable HTTPS tunnel/endpoint
+
+## Configure
+
+Copy `.env.example` to `.env` and set `OPENROUTER_API_KEY`, `DATABASE_URL`,
+`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `SLACK_BOT_TOKEN`,
+`SLACK_SIGNING_SECRET`, and `SLACK_ALLOWED_USER_IDS`. Keep `.env` private; it is
+excluded from Git and the Docker build.
+
+The Compose service connects to host PostgreSQL using
+`host.docker.internal`. The sample `DATABASE_URL` is suitable for the local
+CLI; set the host's `POSTGRES_HOST` if your database is elsewhere.
+
+Install dependencies and run the CLI agent:
+
+```bash
+uv sync
+uv run azul-ai
+```
+
+## Slack over HTTP
+
+Start the Slack receiver:
+
+```bash
+docker compose up --build -d
+docker compose logs -f azul-ai-agent
+```
+
+The receiver handles channel `app_mention`, direct-message `message.im`, and
+the `/agent-reset`, `/agent-new`, and `/agent-compact` slash commands. Configure
+the Slack app's Events API and each slash command to use
+`https://<public-host>/slack/events`. Subscribe to the `app_mention` and
+`message.im` bot events and grant `app_mentions:read`, `im:history`, and
+`chat:write`. Custom slash commands cannot be invoked in message threads.
+
+The agent's file tools are restricted to `skills/`, which Compose bind-mounts
+from this host project to `/app/skills` in the container. Created files remain
+on the host after container recreation. File sizes are limited to 100 KB.
+`run_command` allows only `pwd` and `ls` in `skills/`; arbitrary shell commands
+are disabled.
+
+## Session retention
+
+Each user who participates in a conversation is recorded by platform and stable
+platform user ID. To delete sessions inactive for more than 30 days while
+preserving every session in which your Slack user participated, run:
+
+```bash
+uv run azul-ai --prune-sessions-older-than-days 30 \
+  --keep-platform slack --keep-user-id U0123456789
+```
+
+Use your Slack user ID (the `U...` identifier, such as the value in
+`SLACK_ALLOWED_USER_IDS`), not your display name. This cleanup is permanent.
+Sessions with no participant records, including legacy sessions created before
+participant tracking, are intentionally left untouched because their owners
+cannot be determined safely.
+
+## Source layout
+
+- `src/azul_ai/core/agent.py` — shared OpenAI model orchestration
+- `src/azul_ai/core/db.py` — PostgreSQL connection and conversation storage
+- `src/azul_ai/core/session.py` — channel-independent session operations
+- `src/azul_ai/cli.py` — local interactive CLI entry point
+- `src/azul_ai/channels/base.py` — normalized incoming-message contract
+- `src/azul_ai/channels/slack/` — Slack Bolt and Flask adapter
+- `src/azul_ai/channels/whatsapp/` and `src/azul_ai/channels/telegram/` — reserved adapters
+- `src/azul_ai/tools/local.py` — confirmed local command and file tools
+- `src/azul_ai/tools/skills.py` — restricted persistent-skills tools
