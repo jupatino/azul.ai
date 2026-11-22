@@ -62,8 +62,8 @@ jobs:
             "$PR_AUTHOR" "$PR_BASE"
           payload="$(jq -n \
             --arg text "$message" \
-            --arg icon_url "$BOT_ICON_URL" \
-            '{text: $text, mrkdwn: true, username: "azul.ai", icon_url: $icon_url}')"
+            --arg image_url "$BOT_ICON_URL" \
+            '{text: $text, blocks: [{type: "section", text: {type: "mrkdwn", text: $text}, accessory: {type: "image", image_url: $image_url, alt_text: "Azul AI bot"}}]}')"
 
           curl --fail --silent --show-error \
             -H "Content-Type: application/json" \
