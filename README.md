@@ -95,6 +95,8 @@ repository's compact GitHub open and merged status icons, rendered from the
 [Primer Octicons Git Pull Request](https://github.com/primer/octicons/blob/main/icons/git-pull-request-16.svg)
 and [Git Merge](https://github.com/primer/octicons/blob/main/icons/git-merge-16.svg)
 vectors as high-resolution PNGs for Slack.
+Versioned image filenames ensure Slack fetches updated icon artwork instead of
+reusing cached images.
 The `Tests` workflow uses compact status icons for tests starting, passing,
 failing, and being cancelled.
 
