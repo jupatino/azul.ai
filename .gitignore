@@ -13,3 +13,6 @@ coverage.xml
 
 # Local environment variables and secrets
 .env
+
+# Local agent skills
+/skills/
