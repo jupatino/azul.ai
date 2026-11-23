@@ -1,0 +1,135 @@
+name: CI
+
+# Steps 2-4 of the PR flow: run tests, report to Slack, auto-merge on green.
+# Runs on `pull_request` (never `pull_request_target`), so the token is read-only
+# by default and fork PRs get no secrets.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+# A new push to the same PR cancels the older run instead of stacking runs.
+concurrency:
+  group: ci-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  PR_NUMBER: ${{ github.event.pull_request.number }}
+  PR_TITLE: ${{ github.event.pull_request.title }}
+  PR_URL: ${{ github.event.pull_request.html_url }}
+
+jobs:
+  # Slack: "Tests started". Separate job so the test job never sees Slack secrets.
+  notify-start:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - name: Notify Slack - tests started
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+        run: .github/scripts/slack-notify.sh "Tests started" tests-started.png
+
+  # Keep the job id `test` - it's the status check branch protection requires.
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.15"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run tests with coverage
+        run: |
+          uv run --frozen coverage run --branch --source=src/azul_ai \
+            -m unittest discover -s tests -v
+          uv run --frozen coverage report --show-missing
+
+      - name: Compile source
+        run: uv run --frozen python -m compileall -q src tests
+
+  # Slack: "Tests passed / failed / cancelled".
+  notify-result:
+    needs: test
+    if: always() && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - name: Notify Slack - test result
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+          RESULT: ${{ needs.test.result }}
+        run: |
+          case "$RESULT" in
+            success)   .github/scripts/slack-notify.sh "Tests passed" tests-passed.png ;;
+            failure)   .github/scripts/slack-notify.sh "Tests failed" tests-failed.png ;;
+            cancelled) .github/scripts/slack-notify.sh "Tests cancelled" tests-cancelled.png ;;
+            *)         .github/scripts/slack-notify.sh "Tests ${RESULT}" "" ;;
+          esac
+
+  # Step 4: merge ONLY if tests passed, the PR is yours, from this repo, and not a draft.
+  merge:
+    needs: test
+    if: >-
+      needs.test.result == 'success' &&
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
+      - name: Merge pull request
+        id: merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        # --match-head-commit: refuse to merge if a commit landed after the tested one.
+        run: gh pr merge "$PR_NUMBER" --merge --match-head-commit "$HEAD_SHA"
+
+      # The merge above uses GITHUB_TOKEN, which does NOT fire a `closed` event
+      # for other workflows - so this job announces the merge itself.
+      - name: Notify Slack - merged
+        if: steps.merge.outcome == 'success'
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+        run: .github/scripts/slack-notify.sh "Pull request merged" pr-merged-v2.png
+
+      - name: Notify Slack - merge failed
+        if: failure()
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+        run: .github/scripts/slack-notify.sh "Auto-merge failed - needs attention" tests-failed.png
