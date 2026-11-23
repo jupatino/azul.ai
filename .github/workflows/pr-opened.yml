@@ -1,0 +1,79 @@
+name: PR opened notification
+
+# Step 1 of the PR flow: announce new PRs in Slack - including PRs from forks,
+# which can't see secrets under `pull_request`.
+#
+# Uses `pull_request_target`, so it is deliberately locked down:
+#   * no checkout, no PR code executed - only event metadata is read
+#   * token has no permissions at all
+#   * title/author are passed via env and escaped before reaching Slack
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, ready_for_review]
+
+permissions: {}
+
+jobs:
+  notify:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Notify Slack - PR opened
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+          ACTION: ${{ github.event.action }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_BASE: ${{ github.event.pull_request.base.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$SLACK_BOT_TOKEN" || -z "$SLACK_CHANNEL_ID" ]]; then
+            echo "::error::Configure SLACK_BOT_TOKEN and SLACK_CHANNEL_ID secrets."
+            exit 1
+          fi
+
+          case "$ACTION" in
+            reopened)         label="Pull request reopened" ;;
+            ready_for_review) label="Ready for review" ;;
+            *)                label="New pull request" ;;
+          esac
+          details="Author: ${PR_AUTHOR} | Base: ${PR_BASE}"
+          if [[ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]]; then
+            details="${details} | Fork: ${HEAD_REPO} (no auto-merge)"
+          fi
+
+          payload="$(jq -n \
+            --arg channel "$SLACK_CHANNEL_ID" --arg status "$label" \
+            --arg icon_url "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/assets/slack/pr-open-v2.png" \
+            --arg number "$PR_NUMBER" --arg title "$PR_TITLE" \
+            --arg url "$PR_URL" --arg details "$details" \
+            'def esc: gsub("&"; "&amp;") | gsub("<"; "&lt;") | gsub(">"; "&gt;");
+             ($title | esc) as $t | ($details | esc) as $d | ($status | esc) as $s |
+             {
+               channel: $channel,
+               unfurl_links: false,
+               text: ($s + ": PR #" + $number + ": " + $t),
+               blocks: [
+                 {type: "context", elements: [
+                   {type: "image", image_url: $icon_url, alt_text: "Pull request"},
+                   {type: "mrkdwn", text: ("*" + $s + "*")}]},
+                 {type: "section", text: {type: "mrkdwn", text: ("<" + $url + "|PR #" + $number + ": " + $t + ">")}},
+                 {type: "context", elements: [{type: "mrkdwn", text: $d}]}
+               ]
+             }')"
+
+          response="$(curl --fail --silent --show-error --max-time 20 \
+            -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+            -H "Content-Type: application/json; charset=utf-8" \
+            --data "$payload" \
+            https://slack.com/api/chat.postMessage)"
+          if ! jq -e '.ok == true' <<<"$response" >/dev/null; then
+            echo "::error::Slack rejected the notification: $(jq -r '.error // "unknown_error"' <<<"$response")"
+            exit 1
+          fi
