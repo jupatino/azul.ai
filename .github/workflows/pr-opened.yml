@@ -1,7 +1,8 @@
 name: PR opened notification
 
-# Step 1 of the PR flow: announce new PRs in Slack - including PRs from forks,
-# which can't see secrets under `pull_request`.
+# Announces PRs from forks in Slack. Fork PRs can't see secrets under
+# `pull_request`, so CI can't post for them. PRs from this repo get their
+# (single, self-updating) Slack message from ci.yml instead.
 #
 # Uses `pull_request_target`, so it is deliberately locked down:
 #   * no checkout, no PR code executed - only event metadata is read
@@ -16,7 +17,9 @@ permissions: {}
 
 jobs:
   notify:
-    if: github.event.pull_request.draft == false
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -43,10 +46,7 @@ jobs:
             ready_for_review) label="Ready for review" ;;
             *)                label="New pull request" ;;
           esac
-          details="Author: ${PR_AUTHOR} | Base: ${PR_BASE}"
-          if [[ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]]; then
-            details="${details} | Fork: ${HEAD_REPO} (no auto-merge)"
-          fi
+          details="Author: ${PR_AUTHOR} | Base: ${PR_BASE} | Fork: ${HEAD_REPO} (tests run without Slack updates; no auto-merge)"
 
           payload="$(jq -n \
             --arg channel "$SLACK_CHANNEL_ID" --arg status "$label" \

@@ -1,8 +1,8 @@
 name: CI
 
-# Steps 2-4 of the PR flow: run tests, report to Slack, auto-merge on green.
-# Runs on `pull_request` (never `pull_request_target`), so the token is read-only
-# by default and fork PRs get no secrets.
+# The PR flow: run tests, keep one Slack message per PR up to date, auto-merge on green.
+# Runs on `pull_request` (never `pull_request_target`), so fork PRs get no secrets
+# and no write access. Slack updates and merging only happen for same-repo PRs.
 on:
   pull_request:
     branches: [main]
@@ -17,33 +17,42 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PR_NUMBER: ${{ github.event.pull_request.number }}
-  PR_TITLE: ${{ github.event.pull_request.title }}
-  PR_URL: ${{ github.event.pull_request.html_url }}
+  SLACK_MENTION_USER_ID: ${{ vars.SLACK_MENTION_USER_ID }}
 
 jobs:
-  # Slack: "Tests started". Separate job so the test job never sees Slack secrets.
+  # Posts (or updates) the PR's Slack message: "Tests running".
+  # Separate job so the test job never sees Slack secrets.
   notify-start:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 5
     continue-on-error: true
+    permissions:
+      contents: read
+      issues: write          # record the Slack message id in a PR comment
+      pull-requests: write
     steps:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
           sparse-checkout: .github/scripts
-      - name: Notify Slack - tests started
+      - name: Slack - tests running
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
-        run: .github/scripts/slack-notify.sh "Tests started" tests-started.png
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/slack-pr-status.sh running
 
-  # Keep the job id `test` - it's the status check branch protection requires.
+  # Keep the job id `test` - it's the status check the ruleset requires.
   test:
     name: test
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      duration: ${{ steps.tests.outputs.duration }}
+      coverage: ${{ steps.tests.outputs.coverage }}
+      failing: ${{ steps.tests.outputs.failing }}
+      failing_count: ${{ steps.tests.outputs.failing_count }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -58,42 +67,69 @@ jobs:
         run: uv sync --frozen
 
       - name: Run tests with coverage
+        id: tests
+        shell: bash
         run: |
-          uv run --frozen coverage run --branch --source=src/azul_ai \
-            -m unittest discover -s tests -v
-          uv run --frozen coverage report --show-missing
+          set +e
+          start=$(date +%s)
+          { uv run --frozen coverage run --branch --source=src/azul_ai \
+              -m unittest discover -s tests -v; } 2>&1 | tee test-output.log
+          status=${PIPESTATUS[0]}
+          uv run --frozen coverage report --show-missing 2>&1 | tee coverage.log
+          end=$(date +%s)
+
+          failing=$(grep -E '^(FAIL|ERROR): ' test-output.log | awk '{print $2}' \
+            | head -n 5 | paste -sd, - | sed 's/,/, /g')
+          failing_count=$(grep -cE '^(FAIL|ERROR): ' test-output.log)
+          {
+            echo "duration=$((end - start))"
+            echo "coverage=$(awk '/^TOTAL/ {print $NF}' coverage.log)"
+            echo "failing=${failing}"
+            echo "failing_count=${failing_count}"
+          } >> "$GITHUB_OUTPUT"
+          exit "$status"
 
       - name: Compile source
         run: uv run --frozen python -m compileall -q src tests
 
-  # Slack: "Tests passed / failed / cancelled".
+  # Updates the Slack message: passed / failed (with failing tests + ping) / cancelled.
   notify-result:
-    needs: test
+    needs: [test, notify-start]
     if: always() && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    continue-on-error: true
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
           sparse-checkout: .github/scripts
-      - name: Notify Slack - test result
+      - name: Slack - test result
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+          GH_TOKEN: ${{ github.token }}
           RESULT: ${{ needs.test.result }}
+          TEST_DURATION: ${{ needs.test.outputs.duration }}
+          COVERAGE: ${{ needs.test.outputs.coverage }}
+          FAILING: ${{ needs.test.outputs.failing }}
+          FAILING_COUNT: ${{ needs.test.outputs.failing_count }}
         run: |
           case "$RESULT" in
-            success)   .github/scripts/slack-notify.sh "Tests passed" tests-passed.png ;;
-            failure)   .github/scripts/slack-notify.sh "Tests failed" tests-failed.png ;;
-            cancelled) .github/scripts/slack-notify.sh "Tests cancelled" tests-cancelled.png ;;
-            *)         .github/scripts/slack-notify.sh "Tests ${RESULT}" "" ;;
+            success)   .github/scripts/slack-pr-status.sh passed ;;
+            cancelled) .github/scripts/slack-pr-status.sh cancelled ;;
+            *)         .github/scripts/slack-pr-status.sh failed ;;
           esac
 
-  # Step 4: merge ONLY if tests passed, the PR is yours, from this repo, and not a draft.
+  # Merge ONLY if tests passed, the PR is yours, from this repo, and not a draft.
   merge:
-    needs: test
+    needs: [test, notify-result]
     if: >-
+      always() &&
       needs.test.result == 'success' &&
       github.event.pull_request.draft == false &&
       github.event.pull_request.head.repo.full_name == github.repository &&
@@ -102,7 +138,15 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: write
+      issues: write
       pull-requests: write
+    env:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TEST_DURATION: ${{ needs.test.outputs.duration }}
+      COVERAGE: ${{ needs.test.outputs.coverage }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -112,24 +156,19 @@ jobs:
       - name: Merge pull request
         id: merge
         env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         # --match-head-commit: refuse to merge if a commit landed after the tested one.
         run: gh pr merge "$PR_NUMBER" --merge --match-head-commit "$HEAD_SHA"
 
-      # The merge above uses GITHUB_TOKEN, which does NOT fire a `closed` event
-      # for other workflows - so this job announces the merge itself.
-      - name: Notify Slack - merged
+      # GITHUB_TOKEN merges don't fire `closed` events for other workflows,
+      # so this job updates Slack itself.
+      - name: Slack - merged
         if: steps.merge.outcome == 'success'
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
-        run: .github/scripts/slack-notify.sh "Pull request merged" pr-merged-v2.png
+        continue-on-error: true
+        run: .github/scripts/slack-pr-status.sh merged
 
-      - name: Notify Slack - merge failed
-        if: failure()
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
-        run: .github/scripts/slack-notify.sh "Auto-merge failed - needs attention" tests-failed.png
+      - name: Slack - merge failed
+        if: failure() && steps.merge.outcome == 'failure'
+        continue-on-error: true
+        run: .github/scripts/slack-pr-status.sh merge_failed
