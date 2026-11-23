@@ -1,0 +1,1 @@
+- 2026-11-23: test of the single self-updating Slack message (fail, then fix and merge).
